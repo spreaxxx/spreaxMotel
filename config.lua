@@ -4,6 +4,9 @@ Config = {}
 Config.MotelName = "Motel"
 Config.RoomPrice = 100000 -- $100,000
 Config.Currency = 'bank' -- Payment method (bank/cash)
+Config.StashName = 'Storage' -- Name of the storage
+Config.StashSlots = 100 -- Storage slots
+Config.StashMaxWeight = 2500000 -- Max weight for the storage
 
 -- Debug Configuration
 Config.Debug = false -- Enable Debug prints (client/server)

@@ -38,7 +38,7 @@ CreateThread(function()
             
             local stashId = 'motel_room_' .. data.citizenid
             DebugPrint("Registering existing stash: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Storage', 100, 2500000, true)
+            exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
         end
     end
 end)
@@ -101,7 +101,7 @@ QBCore.Functions.CreateCallback('motel:server:purchaseRoom', function(source, cb
             
             local stashId = 'motel_room_' .. citizenid
             DebugPrint("Registering new stash: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
+            exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
             
             cb(true, Config.Messages.purchaseSuccess)
         else
@@ -125,7 +125,7 @@ QBCore.Functions.CreateCallback('motel:server:getRoomData', function(source, cb)
     local stashData = exports.ox_inventory:GetInventory(stashId)
     if not stashData then
         DebugPrint("Stash does not exist, registering: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
+        exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
         Wait(100)
     end
     
@@ -164,7 +164,7 @@ RegisterNetEvent('motel:server:enterRoom', function(doorIndex)
         local stashData = exports.ox_inventory:GetInventory(stashId)
         if not stashData then
             DebugPrint("Re-registering stash in bucket: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
+            exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
         end
     end
 end)
@@ -210,7 +210,7 @@ RegisterNetEvent('motel:server:openStash', function(stashId)
     local stashData = exports.ox_inventory:GetInventory(stashId)
     if not stashData then
         DebugPrint("Stash does not exist, creating: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
+        exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
         Wait(100)
     end
     
@@ -228,7 +228,7 @@ RegisterNetEvent('QBCore:Server:PlayerLoaded', function()
     if roomData then
         local stashId = 'motel_room_' .. citizenid
         DebugPrint("Player connected, registering stash: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
+        exports.ox_inventory:RegisterStash(stashId, Config.StashName, Config.StashSlots, Config.StashMaxWeight, true)
         
         if roomData.isInside then
             DebugPrint("Player was inside room, restoring state...")
