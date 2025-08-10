@@ -1,8 +1,10 @@
-shared_script '@WaveShield/resource/waveshield.lua' --this line was automatically written by WaveShield
-
 fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
+
+author 'Spreax'
+description 'A simple motel script'
+version '1.0.0'
 
 shared_scripts {
     '@ox_lib/init.lua',
