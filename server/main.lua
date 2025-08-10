@@ -36,10 +36,9 @@ CreateThread(function()
             }
             UsedBuckets[data.room_bucket] = true
             
-            -- Register stash for existing rooms
             local stashId = 'motel_room_' .. data.citizenid
-            DebugPrint("A registar stash existente: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 100, 2500000, true)
+            DebugPrint("Registering existing stash: " .. stashId)
+            exports.ox_inventory:RegisterStash(stashId, 'Storage', 100, 2500000, true)
         end
     end
 end)
@@ -58,7 +57,6 @@ QBCore.Functions.CreateCallback('motel:server:hasRoom', function(source, cb)
     
     cb(PlayerRooms[Player.PlayerData.citizenid] ~= nil)
 end)
-
 
 QBCore.Functions.CreateCallback('motel:server:isPlayerInside', function(source, cb)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -88,7 +86,7 @@ QBCore.Functions.CreateCallback('motel:server:purchaseRoom', function(source, cb
     
     local roomBucket = GetNextRoomBucket()
     
-    Player.Functions.RemoveMoney(Config.Currency, Config.RoomPrice, "compra-quarto-motel")
+    Player.Functions.RemoveMoney(Config.Currency, Config.RoomPrice, "motel-room-purchase")
     
     MySQL.insert('INSERT INTO motel_rooms (citizenid, room_bucket, entry_door_index, is_inside) VALUES (?, ?, ?, ?)', {
         citizenid, roomBucket, 1, false
@@ -102,12 +100,12 @@ QBCore.Functions.CreateCallback('motel:server:purchaseRoom', function(source, cb
             UsedBuckets[roomBucket] = true
             
             local stashId = 'motel_room_' .. citizenid
-            DebugPrint("A registar novo stash: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 50, 2500000, true)
+            DebugPrint("Registering new stash: " .. stashId)
+            exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
             
             cb(true, Config.Messages.purchaseSuccess)
         else
-            Player.Functions.AddMoney(Config.Currency, Config.RoomPrice, "reembolso-compra-quarto-motel")
+            Player.Functions.AddMoney(Config.Currency, Config.RoomPrice, "motel-room-purchase-refund")
             cb(false, Config.Messages.purchaseFailed)
         end
     end)
@@ -126,8 +124,8 @@ QBCore.Functions.CreateCallback('motel:server:getRoomData', function(source, cb)
     
     local stashData = exports.ox_inventory:GetInventory(stashId)
     if not stashData then
-        DebugPrint("Stash não existe, a registar: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 50, 2500000, true)
+        DebugPrint("Stash does not exist, registering: " .. stashId)
+        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
         Wait(100)
     end
     
@@ -160,13 +158,13 @@ RegisterNetEvent('motel:server:enterRoom', function(doorIndex)
         SetPlayerRoutingBucket(src, roomData.bucket)
         PlayerBuckets[src] = roomData.bucket
         
-        DebugPrint("Jogador " .. GetPlayerName(src) .. " entrou no bucket " .. roomData.bucket .. " pela porta " .. (doorIndex or 1))
+        DebugPrint("Player " .. GetPlayerName(src) .. " entered bucket " .. roomData.bucket .. " through door " .. (doorIndex or 1))
         
         local stashId = 'motel_room_' .. citizenid
         local stashData = exports.ox_inventory:GetInventory(stashId)
         if not stashData then
-            DebugPrint("Re-registando stash no bucket: " .. stashId)
-            exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 50, 2500000, true)
+            DebugPrint("Re-registering stash in bucket: " .. stashId)
+            exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
         end
     end
 end)
@@ -191,7 +189,7 @@ RegisterNetEvent('motel:server:exitRoom', function()
     SetPlayerRoutingBucket(src, 0)
     PlayerBuckets[src] = nil
     
-    DebugPrint("Jogador " .. GetPlayerName(src) .. " saiu do bucket privado")
+    DebugPrint("Player " .. GetPlayerName(src) .. " exited private bucket")
 end)
 
 RegisterNetEvent('motel:server:openStash', function(stashId)
@@ -203,16 +201,16 @@ RegisterNetEvent('motel:server:openStash', function(stashId)
     local expectedStashId = 'motel_room_' .. citizenid
     
     if stashId ~= expectedStashId then
-        print("WARNING: Jogador tentou aceder a stash inválido:", stashId)
+        print("WARNING: Player tried to access invalid stash:", stashId)
         return
     end
     
-    DebugPrint("A abrir stash via server event: " .. stashId)
+    DebugPrint("Opening stash via server event: " .. stashId)
     
     local stashData = exports.ox_inventory:GetInventory(stashId)
     if not stashData then
-        DebugPrint("Stash não existe, a criar: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 50, 2500000, true)
+        DebugPrint("Stash does not exist, creating: " .. stashId)
+        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
         Wait(100)
     end
     
@@ -229,11 +227,11 @@ RegisterNetEvent('QBCore:Server:PlayerLoaded', function()
     
     if roomData then
         local stashId = 'motel_room_' .. citizenid
-        DebugPrint("Jogador conectou, a registar stash: " .. stashId)
-        exports.ox_inventory:RegisterStash(stashId, 'Armazenamento', 50, 2500000, true)
+        DebugPrint("Player connected, registering stash: " .. stashId)
+        exports.ox_inventory:RegisterStash(stashId, 'Storage', 50, 2500000, true)
         
         if roomData.isInside then
-            DebugPrint("Jogador estava dentro do quarto, a restaurar estado...")
+            DebugPrint("Player was inside room, restoring state...")
             SetPlayerRoutingBucket(src, roomData.bucket)
             PlayerBuckets[src] = roomData.bucket
             PlayerInsideStatus[src] = true

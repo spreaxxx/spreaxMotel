@@ -109,8 +109,10 @@ Config.Messages = {
     appearanceCancelled = "Appearance change cancelled.",
     roomDataError = "Error retrieving room data.",
     playerNotFound = "Player not found.",
-    notInMotelRoom = "Não estás num quarto do motel",
-    failedOutfitsMenu = "Erro ao abrir menu de outfits"
+    notInMotelRoom = "You are not in a motel room",
+    failedOutfitsMenu = "Failed to open outfits menu",
+    motelRestoreSuccess = "Room state restored! You can use /exitmotel if needed.",
+    appearanceError = "Appearance system not available"
 }
 
 -- Dialogs
