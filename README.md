@@ -1,9 +1,12 @@
-# Spreax Motels
+# Spreax Motel
 
-Simple motel system with routing buckets system, working on QB/QBOX, currently working with ox_inventory and ox_lib but I'll work to add qb-inventory, qs-inventory, ps-inventory and other menus.
+A simple motel script for qbcore/qbox, maybe I'll make it for esx too but I need to see if someone need it...
+Please mind that is a SIMPLE script and I can add some features later but it's not anything like ingame creator or something like that.
 
-## PREVIEW SOON
+## COMMENTS IN THE ENTIRE CODEM MADE BY AI FOR PEOPLE WHO DON'T UNDERSTAND ALOT OF CODING!
 
+# Discord -> [Join Here](https://discord.gg/PKygX7tsRc)
+# Preview -> [Watch Here](soon)
 
 ## Features
 
@@ -12,22 +15,58 @@ Simple motel system with routing buckets system, working on QB/QBOX, currently w
 - If you leave, when you load again you can interact in your bucket again
 - Anti buckets exploit
 - Every player have one specific bucket
+- MLO or IPL settings, you can choose
 
+## Installation
 
-## Instalation Guide
+- Download the last build and drag it into your server
+- Change the config and locales
+- Add into your server.cfg
 
-- Download spreaxMotels file
-- You can run the sql in server.lua (optionional since I use execute if you don't know how to add the sql)
-- Enjoy
+```cfg
+  ensure spreaxMotel
+```
+### NOT MANDATORY
+- Add the sql code bellow:
 
-## Note 
+```sql
+CREATE TABLE IF NOT EXISTS motel_rooms (
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            citizenid       VARCHAR(50) UNIQUE NOT NULL,
+            room_bucket     INT NOT NULL,
+            entry_door_index INT DEFAULT 1,
+            is_inside       BOOLEAN DEFAULT FALSE,
+            purchased_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_citizenid (citizenid),
+            INDEX idx_bucket    (room_bucket)
+)
+```
 
-- You can change alot of options in config and add more motels...
+### ENJOY
 
 ## Dependecies
 - qb-core/qbx_core
 - ox_inventory
 - ox_lib
 
-# Discord Community
-Join: [SPX Discord](https://discord.gg/jE5cuqX3Ep)
+## FAQ
+
+#### ESX Available?
+
+Not yet, maybe later contact me in my discord if you'ld like the ESX version
+
+#### Can you make a ingame creator?
+
+Nope
+
+
+## FAQ
+
+#### ESX Available?
+
+Not yet, maybe later contact me in my discord if you'ld like the ESX version
+
+#### Can you make a ingame creator?
+
+Nope
+
