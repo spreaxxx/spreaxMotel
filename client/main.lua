@@ -1,169 +1,193 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
-local isInRoom = false
-local currentRoomData = nil
-local doorPoints = {}
-local insidePoints = {}
-local isEntering = false
-local motelBlip = nil
-local entryDoorIndex = nil
-local playerLoaded = false
+-- ── State ────────────────────────────────────────────────────
+
+local isInRoom            = false
+local currentRoomData     = nil
+local doorPoints          = {}
+local insidePoints        = {}
+local isEntering          = false
+local motelBlip           = nil
+local entryDoorIndex      = nil
+local playerLoaded        = false
 local infiniteHealthThread = nil
 
-local preservedHealth = nil
-local preservedArmor = nil
-local preservedHunger = nil
-local preservedThirst = nil
+local preservedHealth  = nil
+local preservedArmor   = nil
+local preservedHunger  = nil
+local preservedThirst  = nil
+
+-- ── Helpers ──────────────────────────────────────────────────
 
 local function DebugPrint(text)
     if Config.Debug then
-        print(text)
+        print("[Motel] " .. tostring(text))
     end
 end
 
+-- ── Infinite Health system ───────────────────────────────────
+
 local function StartInfiniteHealth()
     if infiniteHealthThread then return end
-    
-    DebugPrint("Iniciando sistema de preservação de stats no motel...")
-    
+
+    DebugPrint("Starting stat preservation system...")
+
     local ped = PlayerPedId()
     preservedHealth = GetEntityHealth(ped)
-    preservedArmor = GetPedArmour(ped)
-    
+    preservedArmor  = GetPedArmour(ped)
+
     QBCore.Functions.TriggerCallback('motel:server:getPlayerNeeds', function(needs)
         if needs then
             preservedHunger = needs.hunger
             preservedThirst = needs.thirst
-            DebugPrint("Stats preservados - Vida: " .. preservedHealth .. ", Armadura: " .. preservedArmor .. ", Fome: " .. preservedHunger .. ", Sede: " .. preservedThirst)
+            DebugPrint(string.format(
+                "Stats preserved — Health: %s, Armor: %s, Hunger: %s, Thirst: %s",
+                preservedHealth, preservedArmor, preservedHunger, preservedThirst
+            ))
         else
             preservedHunger = 50
             preservedThirst = 50
-            DebugPrint("Usando valores fallback para fome e sede")
+            DebugPrint("Using fallback values for hunger and thirst.")
         end
     end)
-    
+
     infiniteHealthThread = CreateThread(function()
         while isInRoom and preservedHealth and preservedArmor do
-            local ped = PlayerPedId()
-            
-            if GetEntityHealth(ped) < preservedHealth then
-                SetEntityHealth(ped, preservedHealth)
+            local p = PlayerPedId()
+
+            if GetEntityHealth(p) < preservedHealth then
+                SetEntityHealth(p, preservedHealth)
             end
-            
-            if GetPedArmour(ped) < preservedArmor then
-                SetPedArmour(ped, preservedArmor)
+
+            if GetPedArmour(p) < preservedArmor then
+                SetPedArmour(p, preservedArmor)
             end
-            
+
             if preservedHunger and preservedThirst then
                 TriggerServerEvent('motel:server:maintainNeeds', preservedHunger, preservedThirst)
             end
-            
-            Wait(1000)
+
+            Wait(Config.InfiniteHealth.checkInterval)
         end
-        
-        DebugPrint("Sistema de preservação de stats desativado")
+
+        DebugPrint("Stat preservation system stopped.")
         infiniteHealthThread = nil
     end)
 end
 
 local function StopInfiniteHealth()
     preservedHealth = nil
-    preservedArmor = nil
+    preservedArmor  = nil
     preservedHunger = nil
     preservedThirst = nil
-    
     infiniteHealthThread = nil
-    
+
     local ped = PlayerPedId()
     SetEntityInvincible(ped, false)
-    
-    DebugPrint("Sistema de preservação de stats completamente desativado - jogador pode agora perder stats normalmente")
+
+    DebugPrint("Stat preservation fully stopped — player can lose stats normally.")
 end
 
+-- ── Blip setup ───────────────────────────────────────────────
+
 CreateThread(function()
-    motelBlip = AddBlipForCoord(Config.MotelBlip.coords.x, Config.MotelBlip.coords.y, Config.MotelBlip.coords.z)
-    
+    motelBlip = AddBlipForCoord(
+        Config.MotelBlip.coords.x,
+        Config.MotelBlip.coords.y,
+        Config.MotelBlip.coords.z
+    )
+
     SetBlipSprite(motelBlip, Config.MotelBlip.sprite)
     SetBlipDisplay(motelBlip, Config.MotelBlip.display)
     SetBlipScale(motelBlip, Config.MotelBlip.scale)
     SetBlipColour(motelBlip, Config.MotelBlip.colour)
     SetBlipAsShortRange(motelBlip, true)
-    
+
     BeginTextCommandSetBlipName("STRING")
     AddTextComponentSubstringPlayerName(Config.MotelBlip.name)
     EndTextCommandSetBlipName(motelBlip)
-    
-    DebugPrint("Blip do motel criado com sucesso!")
+
+    DebugPrint("Motel blip created.")
 end)
+
+-- ── Player loaded ─────────────────────────────────────────────
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
     playerLoaded = true
-    DebugPrint("Jogador carregado, a verificar estado do motel...")
-    
+    DebugPrint("Player loaded, checking motel state...")
+
     Wait(3000)
-    
+
     QBCore.Functions.TriggerCallback('motel:server:getRoomData', function(roomData)
         if roomData and roomData.isInside then
-            DebugPrint("Jogador deve estar dentro do quarto, a restaurar...")
+            DebugPrint("Player should be inside room, restoring...")
             RestoreInsideState(roomData)
         else
-            DebugPrint("Jogador não estava dentro do quarto")
+            DebugPrint("Player was not inside a room.")
         end
     end)
 end)
 
+-- Fallback check in case OnPlayerLoaded fires before this resource starts.
 CreateThread(function()
     Wait(5000)
-    
+
     if not playerLoaded then
-        DebugPrint("Verificação manual do estado do motel...")
+        DebugPrint("Manual motel state check...")
         QBCore.Functions.TriggerCallback('motel:server:getRoomData', function(roomData)
             if roomData then
-                DebugPrint("A forçar restauração...")
+                DebugPrint("Forcing state restore...")
                 RestoreInsideState(roomData)
             end
         end)
     end
 end)
 
+-- ── Door interaction points ───────────────────────────────────
+
 CreateThread(function()
     for i, door in ipairs(Config.MotelDoors) do
         local point = lib.points.new({
-            coords = door.coords,
+            coords   = door.coords,
             distance = 2.0,
+
             onEnter = function()
                 if not isEntering and not isInRoom then
                     QBCore.Functions.TriggerCallback('motel:server:hasRoom', function(hasRoom)
                         if hasRoom then
-                            lib.showTextUI(Config.TextUI.enter)
+                            lib.showTextUI(Locale('textui_enter'))
                         else
-                            lib.showTextUI(Config.TextUI.purchase)
+                            lib.showTextUI(Locale('textui_purchase', Config.RoomPrice))
                         end
                     end)
                 end
             end,
+
             onExit = function()
                 lib.hideTextUI()
             end,
+
             nearby = function()
                 if IsControlJustReleased(0, 38) and not isEntering then
                     HandleDoorInteraction(i)
                 end
-            end
+            end,
         })
         doorPoints[i] = point
     end
 end)
 
+-- ── Door / purchase logic ─────────────────────────────────────
+
 function HandleDoorInteraction(doorIndex)
     if isEntering or isInRoom then return end
-    
+
     lib.hideTextUI()
-    
+
     QBCore.Functions.TriggerCallback('motel:server:hasRoom', function(hasRoom)
         if hasRoom then
             entryDoorIndex = doorIndex
-            DebugPrint("Entrando pela porta: " .. doorIndex)
+            DebugPrint("Entering through door: " .. doorIndex)
             EnterRoom()
         else
             PurchaseRoom()
@@ -173,20 +197,20 @@ end
 
 function PurchaseRoom()
     if isEntering then return end
-    
+
     lib.hideTextUI()
-    
+
     local alert = lib.alertDialog({
-        header = Config.Dialogs.purchaseHeader,
-        content = Config.Dialogs.purchaseContent,
+        header  = Locale('dialog_header'),
+        content = Locale('dialog_content', Config.RoomPrice),
         centered = true,
-        cancel = true,
-        labels = {
-            confirm = Config.Dialogs.confirmButton,
-            cancel = Config.Dialogs.cancelButton
-        }
+        cancel   = true,
+        labels   = {
+            confirm = Locale('dialog_confirm'),
+            cancel  = Locale('dialog_cancel'),
+        },
     })
-    
+
     if alert == 'confirm' then
         QBCore.Functions.TriggerCallback('motel:server:purchaseRoom', function(success, message)
             if success then
@@ -198,345 +222,360 @@ function PurchaseRoom()
     end
 end
 
+-- ── Enter / exit room ─────────────────────────────────────────
+
 function EnterRoom()
     if isEntering or isInRoom then return end
-    
+
     isEntering = true
     lib.hideTextUI()
-    
+
     QBCore.Functions.TriggerCallback('motel:server:getRoomData', function(roomData)
         if not roomData then
-            QBCore.Functions.Notify(Config.Messages.roomDataError, 'error')
+            QBCore.Functions.Notify(Locale('roomDataError'), 'error')
             isEntering = false
             return
         end
-        
+
         currentRoomData = roomData
-        entryDoorIndex = entryDoorIndex or roomData.entryDoor
-        
+        entryDoorIndex  = entryDoorIndex or roomData.entryDoor
+
         if Config.Debug then
-            print("DEBUG: Dados do quarto recebidos:")
-            print("bucket:", roomData.bucket)
-            print("stashId:", roomData.stashId)
-            print("entryDoor:", roomData.entryDoor)
-            print("isInside:", roomData.isInside)
+            print("[Motel] DEBUG: Room data received:")
+            print("  bucket:",    roomData.bucket)
+            print("  stashId:",   roomData.stashId)
+            print("  entryDoor:", roomData.entryDoor)
+            print("  isInside:",  roomData.isInside)
         end
-        
+
         LoadMLOInterior(roomData)
     end)
 end
 
 function LoadMLOInterior(roomData)
-    DebugPrint("A carregar interior MLO...")
-    
+    DebugPrint("Loading MLO interior...")
+
     DoScreenFadeOut(500)
     Wait(500)
-    
+
     TriggerServerEvent('motel:server:enterRoom', entryDoorIndex)
     Wait(500)
-    
-    local ped = PlayerPedId()
+
+    local ped         = PlayerPedId()
     local spawnCoords = Config.InteriorSystem.interactionPoints.spawn
-    
+
     SetEntityCoords(ped, spawnCoords.x, spawnCoords.y, spawnCoords.z, false, false, false, true)
     SetEntityHeading(ped, 0.0)
-    
+
     Wait(2000)
     DoScreenFadeIn(500)
-    
-    isInRoom = true
+
+    isInRoom   = true
     isEntering = false
-    
+
     StartInfiniteHealth()
-    
     SetupInteriorInteractions()
-    
-    QBCore.Functions.Notify(Config.Messages.welcomeRoom, 'success')
-    DebugPrint("Entrada no interior MLO concluída!")
+
+    QBCore.Functions.Notify(Locale('welcomeRoom'), 'success')
+    DebugPrint("MLO interior entry complete.")
 end
 
 function RestoreInsideState(roomData)
-    DebugPrint("A restaurar estado dentro do quarto...")
+    DebugPrint("Restoring inside-room state...")
     DebugPrint("Room data: " .. json.encode(roomData))
-    
+
     currentRoomData = roomData
-    entryDoorIndex = roomData.entryDoor
-    isInRoom = true
-    
+    entryDoorIndex  = roomData.entryDoor
+    isInRoom        = true
+
     Wait(1000)
-    
-    local ped = PlayerPedId()
+
+    local ped         = PlayerPedId()
     local spawnCoords = Config.InteriorSystem.interactionPoints.spawn
-    
+
     SetEntityCoords(ped, spawnCoords.x, spawnCoords.y, spawnCoords.z, false, false, false, true)
     SetEntityHeading(ped, 0.0)
-    
+
     Wait(1000)
-    
+
     StartInfiniteHealth()
-    
     SetupInteriorInteractions()
-    
-    QBCore.Functions.Notify("Estado do quarto restaurado! Podes usar /sairmotel se necessário.", 'success')
-    DebugPrint("Estado restaurado com sucesso!")
+
+    QBCore.Functions.Notify(Locale('roomRestored'), 'success')
+    DebugPrint("State restored successfully.")
 end
 
-function SetupInteriorInteractions()
-    DebugPrint("A configurar pontos de interação do interior MLO...")
-    
+function ExitRoom()
+    if not isInRoom then return end
+
+    DebugPrint("Exiting room...")
+    lib.hideTextUI()
+
+    StopInfiniteHealth()
+
     for k, point in pairs(insidePoints) do
-        if point then
-            point:remove()
-        end
+        if point then point:remove() end
         insidePoints[k] = nil
     end
-    
+
+    TriggerServerEvent('motel:server:exitRoom')
+
+    DoScreenFadeOut(500)
+    Wait(500)
+
+    local exitCoords, exitHeading
+
+    if entryDoorIndex and Config.MotelDoors[entryDoorIndex] then
+        exitCoords   = Config.MotelDoors[entryDoorIndex].coords
+        exitHeading  = Config.MotelDoors[entryDoorIndex].heading
+        DebugPrint("Exiting through door: " .. entryDoorIndex)
+    else
+        exitCoords  = Config.MotelDoors[1].coords
+        exitHeading = Config.MotelDoors[1].heading
+        DebugPrint("Using fallback door (1).")
+    end
+
+    local ped = PlayerPedId()
+    SetEntityCoords(ped, exitCoords.x, exitCoords.y, exitCoords.z, false, false, false, true)
+    SetEntityHeading(ped, exitHeading)
+
+    Wait(500)
+    DoScreenFadeIn(500)
+
+    isInRoom        = false
+    currentRoomData = nil
+    entryDoorIndex  = nil
+
+    QBCore.Functions.Notify(Locale('exitRoom'), 'success')
+    DebugPrint("Room exit complete.")
+end
+
+-- ── Interior interaction points ───────────────────────────────
+
+function SetupInteriorInteractions()
+    DebugPrint("Setting up MLO interior interaction points...")
+
+    -- Clear any leftover points from a previous session.
+    for k, point in pairs(insidePoints) do
+        if point then point:remove() end
+        insidePoints[k] = nil
+    end
+
+    -- Exit point
     insidePoints.exit = lib.points.new({
-        coords = Config.InteriorSystem.interactionPoints.exit,
+        coords   = Config.InteriorSystem.interactionPoints.exit,
         distance = 2.5,
+
         onEnter = function()
-            DebugPrint("Entrou na zona de saída")
-            lib.showTextUI(Config.TextUI.exit)
+            DebugPrint("Entered exit zone.")
+            lib.showTextUI(Locale('textui_exit'))
         end,
         onExit = function()
-            DebugPrint("Saiu da zona de saída")
+            DebugPrint("Left exit zone.")
             lib.hideTextUI()
         end,
         nearby = function()
             if IsControlJustReleased(0, 38) then
-                DebugPrint("Pressionou E na saída")
+                DebugPrint("Pressed E at exit.")
                 ExitRoom()
             end
-        end
+        end,
     })
-    
+
+    -- Storage / stash point
     insidePoints.storage = lib.points.new({
-        coords = Config.InteriorSystem.interactionPoints.stash,
+        coords   = Config.InteriorSystem.interactionPoints.stash,
         distance = 1.2,
+
         onEnter = function()
-            DebugPrint("Entrou na zona de armazenamento")
-            lib.showTextUI(Config.TextUI.storage)
+            DebugPrint("Entered storage zone.")
+            lib.showTextUI(Locale('textui_storage'))
         end,
         onExit = function()
-            DebugPrint("Saiu da zona de armazenamento")
+            DebugPrint("Left storage zone.")
             lib.hideTextUI()
         end,
         nearby = function()
             if IsControlJustReleased(0, 38) then
-                DebugPrint("Pressionou E no armazenamento")
+                DebugPrint("Pressed E at storage.")
                 lib.hideTextUI()
                 local success = exports.ox_inventory:openInventory('stash', currentRoomData.stashId)
                 if not success then
                     TriggerServerEvent('motel:server:openStash', currentRoomData.stashId)
                 end
             end
-        end
+        end,
     })
-    
+
+    -- Wardrobe point
     insidePoints.wardrobe = lib.points.new({
-        coords = Config.InteriorSystem.interactionPoints.wardrobe,
+        coords   = Config.InteriorSystem.interactionPoints.wardrobe,
         distance = 2.5,
+
         onEnter = function()
-            DebugPrint("Entrou na zona do guarda-roupa")
-            lib.showTextUI(Config.TextUI.wardrobe)
+            DebugPrint("Entered wardrobe zone.")
+            lib.showTextUI(Locale('textui_wardrobe'))
         end,
         onExit = function()
-            DebugPrint("Saiu da zona do guarda-roupa")
+            DebugPrint("Left wardrobe zone.")
             lib.hideTextUI()
         end,
         nearby = function()
             if IsControlJustReleased(0, 38) then
-                DebugPrint("Pressionou E no guarda-roupa")
+                DebugPrint("Pressed E at wardrobe.")
                 lib.hideTextUI()
                 OpenAppearance()
             end
-        end
+        end,
     })
-    
-    DebugPrint("Pontos de interação configurados!")
-    DebugPrint("Exit: " .. json.encode(Config.InteriorSystem.interactionPoints.exit))
-    DebugPrint("Stash: " .. json.encode(Config.InteriorSystem.interactionPoints.stash))
-    DebugPrint("Wardrobe: " .. json.encode(Config.InteriorSystem.interactionPoints.wardrobe))
-    
-    CreateThread(function()
-        Wait(2000)
-        local ped = PlayerPedId()
-        local coords = GetEntityCoords(ped)
-        DebugPrint("Player coords após setup: " .. json.encode(coords))
-        DebugPrint("Distância para exit: " .. tostring(#(coords - Config.InteriorSystem.interactionPoints.exit)))
-        DebugPrint("Distância para stash: " .. tostring(#(coords - Config.InteriorSystem.interactionPoints.stash)))
-        DebugPrint("Distância para wardrobe: " .. tostring(#(coords - Config.InteriorSystem.interactionPoints.wardrobe)))
-    end)
+
+    DebugPrint("Interaction points set up.")
+    DebugPrint("Exit coords:    " .. json.encode(Config.InteriorSystem.interactionPoints.exit))
+    DebugPrint("Stash coords:   " .. json.encode(Config.InteriorSystem.interactionPoints.stash))
+    DebugPrint("Wardrobe coords:" .. json.encode(Config.InteriorSystem.interactionPoints.wardrobe))
+
+    -- Post-setup distance diagnostics (debug only).
+    if Config.Debug then
+        CreateThread(function()
+            Wait(2000)
+            local coords = GetEntityCoords(PlayerPedId())
+            print(string.format("[Motel] Player coords after setup: %s", json.encode(coords)))
+            print(string.format("[Motel] Distance to exit:    %.2f", #(coords - Config.InteriorSystem.interactionPoints.exit)))
+            print(string.format("[Motel] Distance to stash:   %.2f", #(coords - Config.InteriorSystem.interactionPoints.stash)))
+            print(string.format("[Motel] Distance to wardrobe:%.2f", #(coords - Config.InteriorSystem.interactionPoints.wardrobe)))
+        end)
+    end
 end
 
-function ExitRoom()
-    if not isInRoom then return end
-    
-    DebugPrint("A sair do quarto...")
-    lib.hideTextUI()
-    
-    StopInfiniteHealth()
-    
-    for k, point in pairs(insidePoints) do
-        if point then
-            point:remove()
-        end
-        insidePoints[k] = nil
-    end
-    
-    TriggerServerEvent('motel:server:exitRoom')
-    
-    DoScreenFadeOut(500)
-    Wait(500)
-    
-    local exitCoords, exitHeading
-    
-    if entryDoorIndex and Config.MotelDoors[entryDoorIndex] then
-        exitCoords = Config.MotelDoors[entryDoorIndex].coords
-        exitHeading = Config.MotelDoors[entryDoorIndex].heading
-        DebugPrint("Saindo pela porta: " .. entryDoorIndex)
-    else
-        exitCoords = Config.MotelDoors[1].coords
-        exitHeading = Config.MotelDoors[1].heading
-        DebugPrint("Usando porta fallback (1)")
-    end
-    
-    local ped = PlayerPedId()
-    SetEntityCoords(ped, exitCoords.x, exitCoords.y, exitCoords.z, false, false, false, true)
-    SetEntityHeading(ped, exitHeading)
-    
-    Wait(500)
-    DoScreenFadeIn(500)
-    
-    isInRoom = false
-    currentRoomData = nil
-    entryDoorIndex = nil
-    
-    QBCore.Functions.Notify(Config.Messages.exitRoom, 'success')
-    DebugPrint("Saída do quarto concluída!")
-end
+-- ── Appearance ───────────────────────────────────────────────
 
 function OpenAppearance()
-    DebugPrint("A abrir menu de outfits do illenium-appearance...")
-    
+    DebugPrint("Opening illenium-appearance outfit menu...")
+
     if GetResourceState('illenium-appearance') ~= 'started' then
-        DebugPrint("illenium-appearance não está iniciado")
-        QBCore.Functions.Notify("Sistema de aparência não disponível", 'error')
+        DebugPrint("illenium-appearance is not started.")
+        QBCore.Functions.Notify(Locale('appearanceUnavailable'), 'error')
         return
     end
-    
-    local success = pcall(function()
+
+    local ok = pcall(function()
         exports['illenium-appearance']:openOutfitMenu()
     end)
-    
-    if success then
-        DebugPrint("Menu de outfits aberto com sucesso")
+
+    if ok then
+        DebugPrint("Outfit menu opened via export.")
     else
-        DebugPrint("Erro ao abrir menu de outfits, tentando método alternativo...")
-        
-        local success2 = pcall(function()
+        DebugPrint("Export failed, trying event fallback...")
+        local ok2 = pcall(function()
             TriggerEvent('illenium-appearance:client:openOutfitMenu')
         end)
-        
-        if success2 then
-            DebugPrint("Menu de outfits aberto com método alternativo")
+
+        if ok2 then
+            DebugPrint("Outfit menu opened via event fallback.")
         else
-            DebugPrint("Falha em ambos os métodos")
-            QBCore.Functions.Notify("Erro ao abrir menu de outfits", 'error')
+            DebugPrint("Both methods failed.")
+            QBCore.Functions.Notify(Locale('appearanceError'), 'error')
         end
     end
 end
 
-RegisterCommand('sairmotel', function()
-    print("DEBUG: Comando /sairmotel executado")
-    print("DEBUG: isInRoom:", isInRoom)
-    print("DEBUG: currentRoomData:", json.encode(currentRoomData or {}))
-    
+-- ── Net Events ───────────────────────────────────────────────
+
+RegisterNetEvent('motel:client:restoreInsideState', function(roomData)
+    DebugPrint("Server requested state restore.")
+    RestoreInsideState(roomData)
+end)
+
+-- ── Commands ─────────────────────────────────────────────────
+
+-- Emergency exit command in case interaction points break.
+RegisterCommand('exitmotel', function()
+    if Config.Debug then
+        print("[Motel] /exitmotel called")
+        print("  isInRoom:", isInRoom)
+        print("  currentRoomData:", json.encode(currentRoomData or {}))
+    end
+
     if isInRoom or currentRoomData then
         ExitRoom()
     else
         QBCore.Functions.TriggerCallback('motel:server:getRoomData', function(roomData)
             if roomData and roomData.isInside then
-                print("DEBUG: Servidor diz que estás dentro, a forçar saída...")
+                DebugPrint("Server says player is inside — forcing exit...")
                 currentRoomData = roomData
-                entryDoorIndex = roomData.entryDoor
-                isInRoom = true
+                entryDoorIndex  = roomData.entryDoor
+                isInRoom        = true
                 ExitRoom()
             else
-                QBCore.Functions.Notify("Não estás num quarto do motel", 'error')
+                QBCore.Functions.Notify(Locale('notInRoom'), 'error')
             end
         end)
     end
 end, false)
 
+-- Prints full client state to the F8 console.
 RegisterCommand('debugmotel', function()
-    print("=== DEBUG MOTEL ===")
-    print("isInRoom:", isInRoom)
-    print("isEntering:", isEntering)
+    print("=== MOTEL DEBUG ===")
+    print("isInRoom:",       isInRoom)
+    print("isEntering:",     isEntering)
     print("entryDoorIndex:", entryDoorIndex)
-    print("playerLoaded:", playerLoaded)
+    print("playerLoaded:",   playerLoaded)
     print("currentRoomData:", json.encode(currentRoomData or {}))
-    
-    local ped = PlayerPedId()
-    local coords = GetEntityCoords(ped)
+
+    local coords = GetEntityCoords(PlayerPedId())
     print("Player coords:", coords)
-    
+
     if isInRoom then
-        print("=== PONTOS DE INTERAÇÃO ===")
+        print("=== INTERACTION POINTS ===")
         for k, point in pairs(insidePoints) do
-            if point then
-                print(k .. " point: ATIVO")
-            else
-                print(k .. " point: INATIVO")
-            end
+            print(k .. " point:", point and "ACTIVE" or "INACTIVE")
         end
-        
-        print("=== DISTÂNCIAS ===")
-        print("Exit:", #(coords - Config.InteriorSystem.interactionPoints.exit))
-        print("Stash:", #(coords - Config.InteriorSystem.interactionPoints.stash))
+
+        print("=== DISTANCES ===")
+        print("Exit:",     #(coords - Config.InteriorSystem.interactionPoints.exit))
+        print("Stash:",    #(coords - Config.InteriorSystem.interactionPoints.stash))
         print("Wardrobe:", #(coords - Config.InteriorSystem.interactionPoints.wardrobe))
     end
-    print("==================")
+    print("===================")
 end, false)
 
+-- Forces a state restore from the server (useful after a desync).
 RegisterCommand('restoremotel', function()
-    DebugPrint("Comando /restoremotel executado")
+    DebugPrint("/restoremotel called.")
     QBCore.Functions.TriggerCallback('motel:server:getRoomData', function(roomData)
         if roomData then
-            DebugPrint("A forçar restauração...")
+            DebugPrint("Forcing restore...")
             RestoreInsideState(roomData)
         else
-            DebugPrint("Sem dados de quarto para restaurar")
+            DebugPrint("No room data to restore.")
         end
     end)
 end, false)
 
+-- ── Resource cleanup ──────────────────────────────────────────
+
 AddEventHandler('onResourceStop', function(resourceName)
-    if GetCurrentResourceName() == resourceName then
-        StopInfiniteHealth()
-        
-        if motelBlip then
-            RemoveBlip(motelBlip)
-            motelBlip = nil
-        end
-        
-        for i, point in ipairs(doorPoints) do
-            if point then
-                point:remove()
-            end
-        end
-        
-        for k, point in pairs(insidePoints) do
-            if point then
-                point:remove()
-            end
-        end
-        
-        if isInRoom then
-            TriggerServerEvent('motel:server:exitRoom')
-        end
-        
-        lib.hideTextUI()
-        DoScreenFadeIn(500)
+    if GetCurrentResourceName() ~= resourceName then return end
+
+    StopInfiniteHealth()
+
+    if motelBlip then
+        RemoveBlip(motelBlip)
+        motelBlip = nil
     end
+
+    for _, point in ipairs(doorPoints) do
+        if point then point:remove() end
+    end
+
+    for _, point in pairs(insidePoints) do
+        if point then point:remove() end
+    end
+
+    if isInRoom then
+        TriggerServerEvent('motel:server:exitRoom')
+    end
+
+    lib.hideTextUI()
+    DoScreenFadeIn(500)
 end)
