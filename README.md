@@ -8,7 +8,6 @@ Please mind that is a SIMPLE script and I can add some features later but it's n
 
 # Discord -> [Join Here](https://discord.gg/PKygX7tsRc)
 # Preview -> [Watch Here](soon)
-
 ## Features
 
 - Buy a motel room for a fixed price
@@ -33,7 +32,7 @@ Please mind that is a SIMPLE script and I can add some features later but it's n
 ```cfg
   ensure spreaxMotel
 ```
-### NOT MANDATORY
+### NOT MANDATORY (AUTO ADD WHEN THE SCRIPT RUNS)
 - Add the sql code bellow:
 
 ```sql
