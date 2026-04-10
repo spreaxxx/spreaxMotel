@@ -1,3 +1,4 @@
+
 # Spreax Motel
 
 A simple motel script for qbcore/qbox, maybe I'll make it for esx too but I need to see if someone need it...
@@ -16,6 +17,12 @@ Please mind that is a SIMPLE script and I can add some features later but it's n
 - Anti buckets exploit
 - Every player have one specific bucket
 - MLO or IPL settings, you can choose
+
+
+## Screenshots
+
+![Motel Screenshot](soon)
+
 
 ## Installation
 
@@ -41,24 +48,12 @@ CREATE TABLE IF NOT EXISTS motel_rooms (
             INDEX idx_bucket    (room_bucket)
 )
 ```
-
-### ENJOY
-
 ## Dependecies
 - qb-core/qbx_core
 - ox_inventory
 - ox_lib
 
-## FAQ
-
-#### ESX Available?
-
-Not yet, maybe later contact me in my discord if you'ld like the ESX version
-
-#### Can you make a ingame creator?
-
-Nope
-
+### ENJOY
 
 ## FAQ
 
