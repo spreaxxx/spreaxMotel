@@ -7,7 +7,12 @@ Please mind that is a SIMPLE script and I can add some features later but it's n
 ## COMMENTS IN THE ENTIRE CODEM MADE BY AI FOR PEOPLE WHO DON'T UNDERSTAND ALOT OF CODING!
 
 # Discord -> [Join Here](https://discord.gg/PKygX7tsRc)
-# Preview -> [Watch Here](soon)
+# Preview -> [Watch Here](https://youtu.be/i9_H37dJWY4)
+
+
+![Motel Screenshot](https://i.imgur.com/N75W39Q.jpeg)
+
+
 ## Features
 
 - Buy a motel room for a fixed price
@@ -16,11 +21,6 @@ Please mind that is a SIMPLE script and I can add some features later but it's n
 - Anti buckets exploit
 - Every player have one specific bucket
 - MLO or IPL settings, you can choose
-
-
-## Screenshots
-
-![Motel Screenshot](soon)
 
 
 ## Installation
