@@ -4,7 +4,7 @@
 A simple motel script for qbcore/qbox, maybe I'll make it for esx too but I need to see if someone need it...
 Please mind that is a SIMPLE script and I can add some features later but it's not anything like ingame creator or something like that.
 
-## COMMENTS IN THE ENTIRE CODEM MADE BY AI FOR PEOPLE WHO DON'T UNDERSTAND ALOT OF CODING!
+## COMMENTS IN THE ENTIRE CODE ARE MADE BY AI FOR PEOPLE WHO DON'T UNDERSTAND ALOT OF CODING!
 
 # Discord -> [Join Here](https://discord.gg/PKygX7tsRc)
 # Preview -> [Watch Here](https://youtu.be/i9_H37dJWY4)
